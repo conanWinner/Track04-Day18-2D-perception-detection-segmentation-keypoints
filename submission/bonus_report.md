@@ -1,0 +1,64 @@
+# Bonus: ONNX CPU và val lật gương
+
+{
+  "onnx_cpu": [
+    {
+      "head": "one-to-many + NMS",
+      "conf": 0.25,
+      "output shape": "[1, 84, 8400]",
+      "preprocess (ms)": 3.71,
+      "inference (ms)": 43.59,
+      "postprocess (ms)": 1.37,
+      "số box": 5,
+      "total (ms)": 48.67
+    },
+    {
+      "head": "one-to-many + NMS",
+      "conf": 0.001,
+      "output shape": "[1, 84, 8400]",
+      "preprocess (ms)": 3.8,
+      "inference (ms)": 41.02,
+      "postprocess (ms)": 2.04,
+      "số box": 186,
+      "total (ms)": 46.86
+    },
+    {
+      "head": "one-to-one NMS-free",
+      "conf": 0.25,
+      "output shape": "[1, 300, 6]",
+      "preprocess (ms)": 3.42,
+      "inference (ms)": 44.81,
+      "postprocess (ms)": 0.41,
+      "số box": 5,
+      "total (ms)": 48.64
+    },
+    {
+      "head": "one-to-one NMS-free",
+      "conf": 0.001,
+      "output shape": "[1, 300, 6]",
+      "preprocess (ms)": 3.4,
+      "inference (ms)": 43.4,
+      "postprocess (ms)": 0.43,
+      "số box": 177,
+      "total (ms)": 47.23
+    }
+  ],
+  "mirror_validation": [
+    {
+      "Model": "flip_idx giải phẫu",
+      "Pose mAP50-95 — val gốc": 0.4357436046254029,
+      "Pose mAP50-95 — val lật gương": 0.4253492273151239
+    },
+    {
+      "Model": "flip_idx đồng nhất",
+      "Pose mAP50-95 — val gốc": 0.41472441732311605,
+      "Pose mAP50-95 — val lật gương": 0.2751269061288308
+    }
+  ],
+  "method": "Cùng ảnh bus, imgsz=640, 10 lần sau warm-up; Results.speed gồm preprocess, inference, postprocess. Export không nhúng NMS; head many dùng NMS của Ultralytics trên CPU."
+}
+
+flip_idx giải phẫu: mAP gốc 0.4357, lật gương 0.4253, chênh lệch -0.0104.
+flip_idx đồng nhất: mAP gốc 0.4147, lật gương 0.2751, chênh lệch -0.1396.
+
+Val gốc cùng hướng có thể che lỗi gán trái/phải. So sánh chênh lệch mAP trên val lật gương, giữ nguyên weights và quy ước nhãn; mức giảm còn chịu ảnh hưởng thay đổi phân bố ảnh, không quy mọi giảm điểm cho flip_idx. Latency đo trên CPU Kaggle, không suy sang NPU hay thiết bị camera.

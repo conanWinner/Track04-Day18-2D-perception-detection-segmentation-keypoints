@@ -1,0 +1,85 @@
+{
+  "progress": {
+    "box_iou": "ok",
+    "nms": "ok",
+    "batched_nms": "ok",
+    "average_precision": "ok",
+    "mask_iou": "ok",
+    "polygon_to_mask": "ok",
+    "mask_to_yolo_seg": "ok",
+    "autolabel": "ok",
+    "oks": "ok",
+    "joint_angle": "ok",
+    "FLIP_IDX": "ok"
+  },
+  "latency": [
+    {
+      "Cấu hình": "one-to-many + NMS, conf 0.25",
+      "preprocess (ms)": 1.62,
+      "inference (ms)": 8.62,
+      "postprocess (ms)": 1.12,
+      "số box": 5
+    },
+    {
+      "Cấu hình": "one-to-many + NMS, conf 0.001",
+      "preprocess (ms)": 1.59,
+      "inference (ms)": 8.46,
+      "postprocess (ms)": 1.27,
+      "số box": 203
+    },
+    {
+      "Cấu hình": "one-to-one NMS-free, conf 0.25",
+      "preprocess (ms)": 1.58,
+      "inference (ms)": 8.8,
+      "postprocess (ms)": 0.38,
+      "số box": 5
+    },
+    {
+      "Cấu hình": "one-to-one NMS-free, conf 0.001",
+      "preprocess (ms)": 1.59,
+      "inference (ms)": 8.74,
+      "postprocess (ms)": 0.39,
+      "số box": 204
+    }
+  ],
+  "result_4b": {
+    "flip_idx": "giải phẫu",
+    "epochs": 40,
+    "imgsz": 640,
+    "Box mAP50-95": 0.9139528301886793,
+    "Pose mAP50": 0.995,
+    "Pose mAP50-95": 0.4357436046254029,
+    "train (phút)": 3.4
+  },
+  "result_4c": [
+    {
+      "Model": "flip_idx giải phẫu",
+      "Pose mAP50-95 — val gốc": 0.4357436046254029,
+      "Pose mAP50-95 — val lật gương": 0.4253492273151239
+    },
+    {
+      "Model": "flip_idx đồng nhất",
+      "Pose mAP50-95 — val gốc": 0.41472441732311605,
+      "Pose mAP50-95 — val lật gương": 0.2751269061288308
+    }
+  ],
+  "answers": {
+    "Q1": "(a) Sau letterbox là 640x480 sẽ có dự đoán thô là: 640/8 * 480/8 + 640/16 * 480/16 + 640/32 * 480/32 = 6300\n- Tất nhiên phải ít hơn 8400 rồi, do chỉ có 640 * 480 chứ không phải 640 * 640\n\n(b) Nếu bị lệch sang phải và xuống dưới đúng nửa kích thước thì sẽ bị nhầm từ tâm thành góc trái, tức là cxcywh thành xywh",
+    "Q2": "Trong lần chạy trên cuda, chênh lệch tuyệt đối lớn nhất nằm ở postprocess (ms), với one-to-many + NMS, conf 0.001: one-to-many 1.27 ms so với one-to-one 0.39 ms; xem đủ bốn dòng bảng để phân biệt dao động đo với xu hướng. Khi conf thấp hoặc cảnh đông, nhiều ứng viên đi vào NMS nên việc so sánh IoU và lọc duplicate tốn hơn. NMS-free tránh bước này và thuận lợi trên CPU/NPU, nơi phép chọn/lọc tuần tự có thể khó tăng tốc hơn các phép tính mạng; lợi ích thực tế vẫn cần đo trên thiết bị đích.",
+    "Q3": "(a) Nếu hai box cùng class có IoU 0.75 > 0.7, greedy NMS giữ box có score cao và loại box còn lại, dù đó có thể là hai công nhân khác nhau. Tăng ngưỡng giúp giữ người đứng sát nhau nhưng còn nhiều duplicate; giảm ngưỡng giảm duplicate nhưng dễ bỏ sót người và làm số đếm thấp.\n(b) Head one-to-many cung cấp nhiều vị trí có tín hiệu giám sát cho mỗi object, hỗ trợ học đặc trưng của backbone. Head one-to-one học dự đoán duy nhất cho mỗi object để triển khai không cần NMS; huấn luyện hai head tận dụng giám sát dày và đầu ra gọn.",
+    "Q4": "Lần chạy này có 8 vùng liên thông person trong khi Mask R-CNN đếm 4 người và ảnh có 4 người. Hai người chạm nhau có thể thành một vùng nên đếm thiếu; một người bị che hoặc mask vỡ thành nhiều mảnh gây đếm thừa. Panoptic segmentation gán cả class lẫn instance ID cho từng người, còn các vùng stuff chỉ cần class. Trong box xe buýt, class có nhiều pixel nhất là train; semantic chỉ dự đoán class pixel, không có ràng buộc một object như detector, nên hình dáng/kết cấu tương tự và sai khác dữ liệu có thể gây nhầm.",
+    "Q5": "(a) Prototype của YOLO-seg nằm trên lưới dùng chung cho toàn ảnh, nên object nhỏ chỉ chiếm ít ô và dễ mất chi tiết biên; object lớn có nhiều ô hơn nhưng còn bị giới hạn bởi các prototype. Mask R-CNN có 28×28 ô cho mỗi RoI, nên object lớn phải phóng mạnh mask và dễ có biên thô, trong khi object nhỏ được chia lưới theo riêng RoI nhưng vẫn chịu giới hạn độ phân giải đặc trưng.\n(b) Nếu mỗi mask YOLO tự chọn mask Mask R-CNN có IoU cao nhất, nhiều mask YOLO có thể cùng nhận một mask đối chiếu, làm bỏ qua object khác và đánh giá trùng. Hungarian matching tìm ghép một-một tối ưu tổng IoU nên tránh xung đột đó; trong bài toán tổng quát còn cần kiểm tra class và ngưỡng để loại ghép không hợp lý.",
+    "Q6": "Điểm A có 47441 pixel, IoU cao nhất với mask box 0.987; điểm B có 2714 pixel, IoU 0.000. Trên hình SAM đã chạy, A bao gần toàn bộ người áo sáng màu, còn B chỉ lấy một mảnh nhỏ ở ống quần/chân người đó: một điểm dương không chỉ rõ biên và mức phân đoạn, còn box giới hạn vùng của object tốt hơn; box detector sai vẫn có thể tạo nhãn sai. Dùng SAM trực tiếp khi cần tương tác/prompt linh hoạt và đủ tài nguyên; với camera cố định cần độ trễ thấp, dùng SAM tạo nhãn, kiểm tra/sửa nhãn rồi train YOLO-seg nhỏ.",
+    "Q7": "Khi bỏ ngưỡng, Keypoint R-CNN vẫn trả tọa độ cho đầu gối/mắt cá, thường ở mép hoặc bên trong RoI ngay cả khi bộ phận thật nằm ngoài ảnh. Argmax heatmap luôn chọn vị trí có giá trị lớn nhất, không tự biểu diễn rằng keypoint vắng mặt hay bị che. Vì vậy phải kèm điểm tin cậy để tránh dùng một tọa độ suy đoán cho đo góc hoặc cảnh báo; logit của R-CNN cũng không phải xác suất như confidence YOLO.",
+    "Q8": "Trên đồ thị Monte Carlo của lần chạy này: {'người 40×80 px': '8 pixel', 'người 100×200 px': '18 pixel', 'người 250×500 px': 'chưa xuống dưới 0.5 trong khoảng 0–30 pixel đã thử'}. Đây là độ lệch chuẩn của nhiễu Gauss trên từng tọa độ, không phải khoảng cách cố định của mỗi điểm. Sigma mắt nhỏ vì người gán nhãn thống nhất vị trí mắt hơn hông nên cùng sai số pixel bị phạt mạnh hơn. Với người chỉ cao khoảng 80 pixel, vài pixel đã làm OKS giảm đáng kể; cần đủ độ phân giải, kiểm tra độ tin cậy và dùng nhiều khung hình thay vì tin một pose đơn lẻ.",
+    "Q9": "(a) Luật nghiêng >60° có thể báo nhầm khi người cúi nhặt đồ, nằm nghỉ hoặc khi camera nghiêng; có thể bỏ sót người ngã theo hướng nhìn của camera hoặc ngã ngồi nhưng thân vẫn thẳng. (b) Xoay ảnh không đổi số người thật nhưng đổi mạnh hướng cơ thể so với dữ liệu huấn luyện, làm detector/pose kém ổn định, nên số người phát hiện có thể giảm.\n(c) Hệ thống thật cần tracking để nối cùng người qua thời gian, đo chuyển động và thay đổi độ cao/tư thế, lọc theo confidence, xử lý che khuất và hiệu chỉnh góc camera. Cần kiểm chứng trên các tình huống ngã/không ngã, cơ chế xác nhận cảnh báo và đánh giá cả tỷ lệ báo nhầm lẫn bỏ sót.",
+    "Q10": "Val chỉ có hổ quay phải nên mAP có thể vẫn cao khi flip_idx đồng nhất; không thể khẳng định luôn không giảm vì augmentation sai còn ảnh hưởng quá trình học. Val này không kiểm tra khả năng gán đúng trái/phải trên hổ quay trái nên dễ che lỗi. Khi triển khai gặp hướng quay ngược hoặc ảnh lật gương, keypoint left/right có thể đảo; cần hoán đổi đúng khi lật và đánh giá trên cả hai hướng như thí nghiệm 4C.",
+    "Q11": "Trong lần chạy này, các ảnh tệ gồm Frame_17.jpg: OKS 0.618; Frame_67.jpg: OKS 0.621; Frame_54.jpg: OKS 0.623; bỏ sót 0/53 ảnh và 9/53 ảnh tăng OKS nếu hoán đổi trái/phải, là dấu hiệu nghi ngờ chứ chưa đủ kết luận đảo nhãn. Quan sát Frame_17/Frame_18: hai dự đoán bàn chân trước (X đỏ và xanh) tụ gần vị trí giữa, trong khi hai nhãn tròn ở hai bàn chân cách xa nhau; nên bổ sung ảnh hai chân trước tách rõ, kiểm tra nhãn trái/phải và đánh giá riêng khoảng cách từng chân để tránh dự đoán trung bình. Ở Frame_67/Frame_31, chân sau có phần chồng/che nhau và dự đoán khớp chân sau lệch vào phía giữa so với nhãn; nên thêm dữ liệu có che khuất, gán visibility nhất quán và thử ảnh/crop độ phân giải cao hơn rồi kiểm chứng trên val có che khuất. Biểu đồ sai số cũng cho thấy right_front_paw khó nhất (sai số chuẩn hóa trung bình 0.264), nên ưu tiên kiểm tra các nhãn và ca lỗi của nhóm bàn chân.",
+    "Q12": "Sigma=1/12 cho mọi điểm tiện để có metric mặc định nhưng không phản ánh độ mơ hồ khác nhau giữa mũi, gốc đuôi và chân; vì vậy không nên hiểu chúng có cùng độ khó gán nhãn. Có thể cho nhiều người gán nhãn độc lập cùng tập ảnh, tính độ phân tán từng keypoint sau chuẩn hóa theo căn diện tích object, rồi ước lượng sigma riêng với đúng quy ước k=2*sigma. Giữ bộ ảnh hiệu chỉnh độc lập với test, công bố sigma và so sánh các model bằng cùng bộ sigma để tránh cải thiện mAP chỉ vì nới metric."
+  },
+  "env": {
+    "device": "cuda",
+    "torch": "2.11.0+cu128",
+    "ultralytics": "8.4.171"
+  }
+}
